@@ -1,0 +1,105 @@
+
+---
+title: "Comorbidades"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    runtime: shiny_prerendered
+---
+   
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(readxl)
+library(tidyverse)
+library(lubridate)
+library(plotly)
+library(ggmap)
+library(leaflet)
+library(widgetframe)
+library(networkD3)
+library(sf)
+library(rgdal)
+library(leaflet)
+library(raster)
+library(httr)
+
+dat <- read.csv("casos_coronavirus.csv", stringsAsFactors = FALSE)
+covid_morte <- dat %>% filter(classificacaoEstadoSivep == "Positivo",
+                              evolucaoCasoSivep == "\xd3bito")
+comorbidades <- c("Cardiovascular",
+                  "Diabetes",
+                  "Hematologias",
+                  "Imunodeficiencia",
+                  "Neurologia",
+                  "Obesidade",
+                  "Pneumopatia",
+                  "Puerpara",
+                  "Renal",
+                  "SindromeDown")
+pacientes <- covid_morte$codigoPaciente
+#nodes
+## patients
+cat(paste("{","  \"nodes\":[",sep="\n"),file="network_comorbidades.json",sep="\n")
+for(p in 1:length(pacientes)){
+   cat(paste("    {\"name\":\"",pacientes[p],"\",\"group\":1},",sep=""),file="network_comorbidades.json",append=TRUE,sep="\n")   
+}
+##comorbities
+for(c in 1:(length(comorbidades)-1)){
+   cat(paste("    {\"name\":\"",comorbidades[c],"\",\"group\":2},",sep=""),file="network_comorbidades.json",append=TRUE,sep="\n")   
+}
+cat(paste("    {\"name\":\"",comorbidades[c+1],"\",\"group\":2}",sep=""),file="network_comorbidades.json",append=TRUE,sep="\n")   
+allnodes <- c(pacientes,comorbidades)
+#links
+cat(paste("  ],","  \"links\":[",sep="\n"),file="network_comorbidades.json",append=TRUE,sep="\n")
+primeiro_link <- 0
+for(i in 1:length(pacientes)){
+   for(j in 1:length(comorbidades)){
+      if(covid_morte[i,5+j] == "Sim"){
+         if(primeiro_link == 0){
+            cat(paste("    {\"source\":", i-1, ",\"target\":", length(pacientes)+j-1, ",\"value\":", 1, "}", sep=""), file="network_comorbidades.json", append=TRUE, sep="")                        
+            primeiro_link = 1
+         }else{
+            cat(",", file="network_comorbidades.json", append=TRUE, sep="\n")
+            cat(paste("    {\"source\":", i-1, ",\"target\":", length(pacientes)+j-1, ",\"value\":", 1, "}", sep=""), file="network_comorbidades.json", append=TRUE, sep="")            
+         }
+      }
+   }
+}
+cat("", file="network_comorbidades.json", append=TRUE, sep="\n")
+cat(paste("  ]","}",sep="\n"),file="network_comorbidades.json",append=TRUE,sep="\n")
+
+```
+
+Row {data-height=800}
+----------------------------------
+### Rede de Comorbidades
+```{r}
+colorfunc <- networkD3::JS('colorfunc = function(i) { return i == 1 ? d3.schemeCategory20[2] : "#000" };')
+MisJson <- jsonlite::fromJSON(paste(getwd(),"network_comorbidades.json",sep="/"))
+#degreeIn
+degreeIn <- rep(0, nrow(MisJson$nodes))
+degreeIn[unique(sort(MisJson$links$target))+1] <- as.numeric(table(MisJson$links$target))[order(as.character(table(MisJson$links$target)))]
+#degreeOut
+#degreeIn
+degreeOut <- rep(0, nrow(MisJson$nodes))
+degreeOut[unique(sort(MisJson$links$source))+1] <- as.numeric(table(MisJson$links$source))[order(as.character(table(MisJson$links$source)))]
+#size
+MisJson$nodes$nodesize <- degreeIn*10 + degreeOut*1
+MisJson$nodes$name[degreeIn==0] <- ""
+# Create graph
+networkD3::forceNetwork(Links = MisJson$links, 
+                        Nodes = MisJson$nodes, 
+                        Source = "source",
+                        Target = "target", 
+                        Value = "value", 
+                        NodeID = "name",
+                        Group = "group",
+                        opacity = 0.8,
+                        fontSize = 15,
+                        Nodesize = "nodesize",
+                        opacityNoHover = TRUE,
+                        zoom = TRUE,
+                        colourScale =colorfunc #networkD3::JS("d3.scaleOrdinal(d3.schemeCategory10);")
+                        )
+```
