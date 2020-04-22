@@ -1,4 +1,3 @@
-
 ---
 title: "Comorbidades"
 output: 
@@ -79,12 +78,14 @@ colorfunc <- networkD3::JS('colorfunc = function(i) { return i == 1 ? d3.schemeC
 MisJson <- jsonlite::fromJSON(paste(getwd(),"network_comorbidades.json",sep="/"))
 #degreeIn
 degreeIn <- rep(0, nrow(MisJson$nodes))
-degreeIn[unique(sort(MisJson$links$target))+1] <- as.numeric(table(MisJson$links$target))[order(as.character(table(MisJson$links$target)))]
+degreeIn[unique(sort(MisJson$links$target))+1] <- as.numeric(table(MisJson$links$target))
 #degreeOut
 #degreeIn
 degreeOut <- rep(0, nrow(MisJson$nodes))
-degreeOut[unique(sort(MisJson$links$source))+1] <- as.numeric(table(MisJson$links$source))[order(as.character(table(MisJson$links$source)))]
+degreeOut[unique(sort(MisJson$links$source))+1] <- as.numeric(table(MisJson$links$source))
 #size
+MisJson$nodes$degreeIn <- degreeIn
+MisJson$nodes$degreeOut <- degreeOut
 MisJson$nodes$nodesize <- degreeIn*10 + degreeOut*1
 MisJson$nodes$name[degreeIn==0] <- ""
 # Create graph
