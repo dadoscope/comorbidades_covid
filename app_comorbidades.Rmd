@@ -1,10 +1,10 @@
 ---
-title: "Comorbidades"
+title: "Comorbidades de Covid19 no Estado do Ceará - versão Beta"
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
     vertical_layout: fill
-    runtime: shiny_prerendered
+runtime: shiny_prerendered
 ---
    
 ```{r setup, include=FALSE}
@@ -35,7 +35,8 @@ comorbidades <- c("Cardiovascular",
                   "Pneumopatia",
                   "Puerpara",
                   "Renal",
-                  "SindromeDown")
+                  "SindromeDown",
+                  "NenhumaComorbidade")
 pacientes <- covid_morte$codigoPaciente
 #nodes
 ## patients
@@ -53,14 +54,27 @@ allnodes <- c(pacientes,comorbidades)
 cat(paste("  ],","  \"links\":[",sep="\n"),file="network_comorbidades.json",append=TRUE,sep="\n")
 primeiro_link <- 0
 for(i in 1:length(pacientes)){
-   for(j in 1:length(comorbidades)){
-      if(covid_morte[i,5+j] == "Sim"){
-         if(primeiro_link == 0){
-            cat(paste("    {\"source\":", i-1, ",\"target\":", length(pacientes)+j-1, ",\"value\":", 1, "}", sep=""), file="network_comorbidades.json", append=TRUE, sep="")                        
-            primeiro_link = 1
-         }else{
-            cat(",", file="network_comorbidades.json", append=TRUE, sep="\n")
-            cat(paste("    {\"source\":", i-1, ",\"target\":", length(pacientes)+j-1, ",\"value\":", 1, "}", sep=""), file="network_comorbidades.json", append=TRUE, sep="")            
+   tem_comorbidade <- sum(covid_morte[i,4+(1:length(comorbidades))] %in% c("Sim")) 
+   #-- representa as mortes sem comorbidades
+   if(tem_comorbidade == 0){
+      if(primeiro_link == 0){
+         cat(paste("    {\"source\":", i-1, ",\"target\":", length(allnodes)-1, ",\"value\":", 1, "}", sep=""), file="network_comorbidades.json", append=TRUE, sep="")
+         primeiro_link = 1
+      }else{
+         cat(",", file="network_comorbidades.json", append=TRUE, sep="\n")
+         cat(paste("    {\"source\":", i-1, ",\"target\":", length(allnodes)-1, ",\"value\":", 1, "}", sep=""), file="network_comorbidades.json", append=TRUE, sep="")            
+      }
+   }
+   else{
+      for(j in 1:(length(comorbidades)-1)){
+         if(covid_morte[i,5+j] == "Sim"){
+            if(primeiro_link == 0){
+               cat(paste("    {\"source\":", i-1, ",\"target\":", length(pacientes)+j-1, ",\"value\":", 1, "}", sep=""), file="network_comorbidades.json", append=TRUE, sep="")                        
+               primeiro_link = 1
+            }else{
+               cat(",", file="network_comorbidades.json", append=TRUE, sep="\n")
+               cat(paste("    {\"source\":", i-1, ",\"target\":", length(pacientes)+j-1, ",\"value\":", 1, "}", sep=""), file="network_comorbidades.json", append=TRUE, sep="")            
+            }
          }
       }
    }
